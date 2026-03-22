@@ -45,3 +45,29 @@ Please select language:`,
         }
     );
 });
+bot.on("callback_query", (query) => {
+    const chatId = query.message.chat.id;
+    const data = query.data;
+
+    // 保存用户语言
+    if (data === "en" || data === "bm" || data === "cn") {
+
+        users[chatId].language = data;
+
+        let text = "";
+
+        if (data === "en") {
+            text = "✅ Language set to English";
+        }
+
+        if (data === "bm") {
+            text = "✅ Bahasa Melayu dipilih";
+        }
+
+        if (data === "cn") {
+            text = "✅ 语言已设置为中文";
+        }
+
+        bot.sendMessage(chatId, text);
+    }
+});
