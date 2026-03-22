@@ -12,14 +12,25 @@ let users = {};
 bot.onText(/\/start/, (msg) => {
     const chatId = msg.chat.id;
 
-    const memberId = "MY" + Math.floor(100000 + Math.random() * 900000);
+    // 如果用户不存在才创建
+    if (!users[chatId]) {
+        const memberId = "MY" + Math.floor(100000 + Math.random() * 900000);
 
-    users[chatId] = {
-        memberId: memberId
-    };
+        users[chatId] = {
+            memberId: memberId
+        };
+    }
+
+    const memberId = users[chatId].memberId;
 
     bot.sendMessage(chatId,
-        `👋 Welcome ${memberId}\n\nPlease select language:`,
+`👋 👋 👋 👋 👋 👋 👋 👋 👋  
+
+Welcome ${memberId}
+Salam ${memberId}
+欢迎 ${memberId}
+
+Please select language:`,
         {
             reply_markup: {
                 inline_keyboard: [
