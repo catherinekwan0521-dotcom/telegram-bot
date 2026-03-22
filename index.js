@@ -82,8 +82,47 @@ bot.on("callback_query", (query) => {
         });
     }
 
-    // register按钮（先留空）
+    // register按钮
     if (data === "register") {
-        bot.sendMessage(chatId, "📱 Please share your phone:");
-    }
+    bot.sendMessage(chatId,
+        "📱 Please share your phone:",
+        {
+            reply_markup: {
+                keyboard: [
+                    [{ text: "📱 Share Phone", request_contact: true }]
+                ],
+                resize_keyboard: true,
+                one_time_keyboard: true
+            }
+        }
+    );
+}
+    bot.on("contact", (msg) => {
+    const chatId = msg.chat.id;
+    const phone = msg.contact.phone_number;
+
+    // 存电话
+    users[chatId].phone = phone;
+
+    const user = users[chatId];
+
+    bot.sendMessage(chatId,
+`✅ Registered Successfully!
+
+🆔 ID: ${user.member_id}
+💰 Balance: RM0
+
+👇 Please choose service`,
+        {
+            reply_markup: {
+                keyboard: [
+                    ["💰 Deposit", "💸 Withdraw"],
+                    ["🔁 Transfer", "🆔 Game ID"],
+                    ["🎁 Promo", "🏆 Agent"],
+                    ["🚀 Guide", "💬 Support"]
+                ],
+                resize_keyboard: true
+            }
+        }
+    );
 });
