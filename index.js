@@ -52,22 +52,31 @@ bot.on("callback_query", (query) => {
     // 保存用户语言
     if (data === "en" || data === "bm" || data === "cn") {
 
-        users[chatId].language = data;
+    users[chatId].language = data;
 
-        let text = "";
+    let message = "";
+    let buttonText = "";
 
-        if (data === "en") {
-            text = "✅ Language set to English";
-        }
-
-        if (data === "bm") {
-            text = "✅ Bahasa Melayu dipilih";
-        }
-
-        if (data === "cn") {
-            text = "✅ 语言已设置为中文";
-        }
-
-        bot.sendMessage(chatId, text);
+    if (data === "en") {
+        message = "🎁 Welcome Bonus RM10\n\nClick register 👇";
+        buttonText = "👉 Register";
     }
-});
+
+    if (data === "bm") {
+        message = "🎁 Bonus Selamat Datang RM10\n\nKlik daftar 👇";
+        buttonText = "👉 Daftar";
+    }
+
+    if (data === "cn") {
+        message = "🎁 欢迎奖金 RM10\n\n点击注册 👇";
+        buttonText = "👉 注册";
+    }
+
+    bot.sendMessage(chatId, message, {
+        reply_markup: {
+            inline_keyboard: [
+                [{ text: buttonText, callback_data: "register" }]
+            ]
+        }
+    });
+}
