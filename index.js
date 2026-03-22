@@ -5,11 +5,10 @@ const token = '8721828503:AAH-fdnsPJkjTeDKqd9oj4UHvXQOMjaJeRc';
 
 const bot = new TelegramBot(token, { polling: true });
 
-// 模拟数据库
 let users = {};
 
 
-// ====== /start ======
+// ====== START ======
 bot.onText(/\/start/, (msg) => {
     const chatId = msg.chat.id;
 
@@ -30,7 +29,7 @@ bot.onText(/\/start/, (msg) => {
 
     const user = users[chatId];
 
-    // ✅ 已注册
+    // 已注册
     if (user.phone && user.name) {
         bot.sendMessage(chatId,
 `👋 Welcome back ${user.member_id}
@@ -51,7 +50,7 @@ bot.onText(/\/start/, (msg) => {
         return;
     }
 
-    // ❗未注册
+    // 未注册
     bot.sendMessage(chatId,
 `👋 Welcome ${user.member_id}
 
@@ -68,14 +67,21 @@ Please select language:`,
 });
 
 
-// ====== 按钮 ======
+// ====== BUTTON ======
 bot.on("callback_query", (query) => {
     const chatId = query.message.chat.id;
     const data = query.data;
     const user = users[chatId];
 
+    // ❗已注册不能再选语言
+    if (user.phone && user.name) {
+        bot.sendMessage(chatId, "⚠️ Already registered");
+        return;
+    }
+
     // 语言
     if (data === "en" || data === "bm" || data === "cn") {
+
         user.language = data;
 
         let msg = "";
@@ -160,23 +166,55 @@ bot.on("message", (msg) => {
         user.temp_name = text;
         user.step = "confirm_name";
 
-        bot.sendMessage(chatId,
+        if (user.language === "en") {
+            bot.sendMessage(chatId,
 `👤 ${text}
 
 Confirm name?`,
-        {
-            reply_markup: {
-                keyboard: [["✅ Yes", "❌ No"]],
-                resize_keyboard: true
-            }
-        });
+            {
+                reply_markup: {
+                    keyboard: [["✅ Yes", "❌ No"]],
+                    resize_keyboard: true
+                }
+            });
+        }
+
+        if (user.language === "bm") {
+            bot.sendMessage(chatId,
+`👤 ${text}
+
+Sahkan nama?`,
+            {
+                reply_markup: {
+                    keyboard: [["✅ Ya", "❌ Tidak"]],
+                    resize_keyboard: true
+                }
+            });
+        }
+
+        if (user.language === "cn") {
+            bot.sendMessage(chatId,
+`👤 ${text}
+
+确认名字吗？`,
+            {
+                reply_markup: {
+                    keyboard: [["✅ 是", "❌ 否"]],
+                    resize_keyboard: true
+                }
+            });
+        }
+
         return;
     }
 
     // ====== 确认名字 ======
     if (user.step === "confirm_name") {
 
-        if (text === "✅ Yes") {
+        const yes = ["✅ Yes", "✅ Ya", "✅ 是"];
+        const no = ["❌ No", "❌ Tidak", "❌ 否"];
+
+        if (yes.includes(text)) {
             user.name = user.temp_name;
             user.step = "phone";
 
@@ -193,9 +231,9 @@ Confirm name?`,
             );
         }
 
-        if (text === "❌ No") {
+        if (no.includes(text)) {
             user.step = "name";
-            bot.sendMessage(chatId, "❗ Please re-enter your FULL NAME:");
+            bot.sendMessage(chatId, "❗ Please re-enter your name:");
         }
 
         return;
