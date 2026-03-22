@@ -29,12 +29,17 @@ bot.onText(/\/start/, (msg) => {
 
     const user = users[chatId];
 
-    // ✅ 如果已经注册过
+    // ====== ✅ 已注册用户 ======
     if (user.phone && user.name) {
+
         bot.sendMessage(chatId,
 `👋 Welcome back ${user.member_id}
 
-💰 Balance: RM${user.balance}`,
+👤 Name: ${user.name}
+📱 Phone: ${user.phone}
+💰 Balance: RM${user.balance}
+
+👇 Please choose service`,
         {
             reply_markup: {
                 keyboard: [
@@ -50,7 +55,7 @@ bot.onText(/\/start/, (msg) => {
         return;
     }
 
-    // ❗如果还没注册 → 才走这里
+    // ====== ❗未注册用户 ======
     bot.sendMessage(chatId,
 `👋 👋 👋 👋 👋 👋 👋 👋 👋  
 
