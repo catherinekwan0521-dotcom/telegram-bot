@@ -1,13 +1,14 @@
 const TelegramBot = require('node-telegram-bot-api');
 
-// 我的token
+//
 const token = '8721828503:AAH-fdnsPJkjTeDKqd9oj4UHvXQOMjaJeRc';
 
 const bot = new TelegramBot(token, { polling: true });
 
+// 模拟数据库（之后可以换Firebase）
 let users = {};
 
-// /start
+// ====== START ======
 bot.onText(/\/start/, (msg) => {
     const chatId = msg.chat.id;
 
@@ -18,8 +19,10 @@ bot.onText(/\/start/, (msg) => {
             telegram_id: chatId,
             member_id: memberId,
             phone: null,
+            name: null,
             balance: 0,
-            language: null
+            language: null,
+            step: null
         };
     }
 
@@ -45,64 +48,159 @@ Please select language:`,
     );
 });
 
-// 处理按钮
+
+// ====== BUTTON HANDLER ======
 bot.on("callback_query", (query) => {
     const chatId = query.message.chat.id;
     const data = query.data;
 
-    // 语言选择
+    // 语言
     if (data === "en" || data === "bm" || data === "cn") {
 
         users[chatId].language = data;
 
-        let message = "";
-        let buttonText = "";
+        let msg = "";
+        let btn = "";
 
         if (data === "en") {
-            message = "🎁 Welcome Bonus RM10\n\nClick register 👇";
-            buttonText = "👉 Register";
+            msg = "🎁 Welcome Bonus RM10\n\nClick register 👇";
+            btn = "👉 Register";
         }
 
         if (data === "bm") {
-            message = "🎁 Bonus Selamat Datang RM10\n\nKlik daftar 👇";
-            buttonText = "👉 Daftar";
+            msg = "🎁 Bonus Selamat Datang RM10\n\nKlik daftar 👇";
+            btn = "👉 Daftar";
         }
 
         if (data === "cn") {
-            message = "🎁 欢迎奖金 RM10\n\n点击注册 👇";
-            buttonText = "👉 注册";
+            msg = "🎁 欢迎奖金 RM10\n\n点击注册 👇";
+            btn = "👉 注册";
         }
 
-        bot.sendMessage(chatId, message, {
+        bot.sendMessage(chatId, msg, {
             reply_markup: {
                 inline_keyboard: [
-                    [{ text: buttonText, callback_data: "register" }]
+                    [{ text: btn, callback_data: "register" }]
                 ]
             }
         });
     }
 
-    // register按钮
+    // 注册
     if (data === "register") {
-    bot.sendMessage(chatId,
-        "📱 Please share your phone:",
+        users[chatId].step = "name";
+
+        bot.sendMessage(chatId, "📝 Please enter your FULL NAME:");
+    }
+});
+
+
+// ====== MESSAGE HANDLER ======
+bot.on("message", (msg) => {
+    const chatId = msg.chat.id;
+    const text = msg.text;
+
+    if (!users[chatId]) return;
+
+    const user = users[chatId];
+
+    // ====== 输入名字 ======
+    if (user.step === "name") {
+        user.name = text;
+        user.step = "phone";
+
+        bot.sendMessage(chatId,
+            "📱 Please share your phone:",
+            {
+                reply_markup: {
+                    keyboard: [
+                        [{ text: "📱 Share Phone", request_contact: true }]
+                    ],
+                    resize_keyboard: true,
+                    one_time_keyboard: true
+                }
+            }
+        );
+        return;
+    }
+
+    // ====== Deposit Menu ======
+    if (text === "💰 Deposit") {
+
+        bot.sendMessage(chatId,
+`ℹ️ Minimum deposit RM30
+
+请选择充值金额：`,
         {
             reply_markup: {
                 keyboard: [
-                    [{ text: "📱 Share Phone", request_contact: true }]
+                    ["30", "50", "100", "200"],
+                    ["300", "500", "1000", "2000"],
+                    ["其他金额"],
+                    ["❌ Cancel"]
                 ],
-                resize_keyboard: true,
-                one_time_keyboard: true
+                resize_keyboard: true
             }
-        }
-    );
-}
-    bot.on("contact", (msg) => {
-    const chatId = msg.chat.id;
-    const phone = msg.contact.phone_number;
+        });
+        return;
+    }
 
-    // 存电话
-    users[chatId].phone = phone;
+    // ====== Deposit Amount ======
+    const amounts = ["30","50","100","200","300","500","1000","2000"];
+
+    if (amounts.includes(text)) {
+
+        bot.sendMessage(chatId,
+`🏦 Bank Details:
+
+Bank: Maybank
+Name: ABC COMPANY
+Account: 1234567890
+
+💰 Amount: RM${text}
+
+📸 Please send your receipt after transfer`);
+
+        return;
+    }
+
+    if (text === "其他金额") {
+        user.step = "custom_amount";
+        bot.sendMessage(chatId, "请输入金额 RM:");
+        return;
+    }
+
+    if (user.step === "custom_amount") {
+        bot.sendMessage(chatId,
+`🏦 Bank Details:
+
+Bank: Maybank
+Name: ABC COMPANY
+Account: 1234567890
+
+💰 Amount: RM${text}
+
+📸 Please send your receipt after transfer`);
+
+        user.step = null;
+        return;
+    }
+
+    if (text === "❌ Cancel") {
+        bot.sendMessage(chatId, "❌ Cancelled");
+        return;
+    }
+});
+
+
+// ====== CONTACT ======
+bot.on("contact", (msg) => {
+    const chatId = msg.chat.id;
+
+    if (!users[chatId]) return;
+
+    users[chatId].phone = msg.contact.phone_number;
+    users[chatId].step = null;
 
     const user = users[chatId];
 
@@ -110,6 +208,8 @@ bot.on("callback_query", (query) => {
 `✅ Registered Successfully!
 
 🆔 ID: ${user.member_id}
+👤 Name: ${user.name}
+📱 Phone: ${user.phone}
 💰 Balance: RM0
 
 👇 Please choose service`,
