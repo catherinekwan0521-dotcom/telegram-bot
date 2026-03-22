@@ -12,6 +12,7 @@ let users = {};
 bot.onText(/\/start/, (msg) => {
     const chatId = msg.chat.id;
 
+    // 创建用户（如果没有）
     if (!users[chatId]) {
         const memberId = "MY" + Math.floor(100000 + Math.random() * 900000);
 
@@ -28,6 +29,28 @@ bot.onText(/\/start/, (msg) => {
 
     const user = users[chatId];
 
+    // ✅ 如果已经注册过
+    if (user.phone && user.name) {
+        bot.sendMessage(chatId,
+`👋 Welcome back ${user.member_id}
+
+💰 Balance: RM${user.balance}`,
+        {
+            reply_markup: {
+                keyboard: [
+                    ["💰 Deposit", "💸 Withdraw"],
+                    ["🔁 Transfer", "🆔 Game ID"],
+                    ["🎁 Promo", "🏆 Agent"],
+                    ["🚀 Guide", "💬 Support"]
+                ],
+                resize_keyboard: true
+            }
+        });
+
+        return;
+    }
+
+    // ❗如果还没注册 → 才走这里
     bot.sendMessage(chatId,
 `👋 👋 👋 👋 👋 👋 👋 👋 👋  
 
