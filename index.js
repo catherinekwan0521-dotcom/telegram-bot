@@ -1,3 +1,7 @@
+console.log("🚀 BOT STARTED");
+bot.on("message", (msg) => {
+    console.log("📩 MSG:", msg.text);
+});
 const TelegramBot = require('node-telegram-bot-api');
 const admin = require("firebase-admin");
 
