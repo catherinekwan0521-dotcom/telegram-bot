@@ -11,7 +11,7 @@ admin.initializeApp({
 const db = admin.firestore();
 
 // ===== TELEGRAM =====
-const token = '8721828503:AAH-fdnsPJkjTeDKqd9oj4UHvXQOMjaJeRc';
+const token ='8721828503:AAH-fdnsPJkjTeDKqd9oj4UHvXQOMjaJeRc';
 const bot = new TelegramBot(token, { polling: true });
 
 let users = {};
