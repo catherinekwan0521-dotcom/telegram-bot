@@ -1,17 +1,56 @@
 const TelegramBot = require('node-telegram-bot-api');
+const admin = require("firebase-admin");
 
-//
+// 🔥 Firebase
+const serviceAccount = require("./firebase-key.json");
+
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+});
+
+const db = admin.firestore();
+
+// ===== TELEGRAM =====
 const token = '8721828503:AAH-fdnsPJkjTeDKqd9oj4UHvXQOMjaJeRc';
-
 const bot = new TelegramBot(token, { polling: true });
 
 let users = {};
 
 
 // ====== START ======
-bot.onText(/\/start/, (msg) => {
+bot.onText(/\/start/, async (msg) => {
     const chatId = msg.chat.id;
 
+    // 🔥 先查 Firebase
+    const userRef = db.collection("users").doc(String(chatId));
+    const userDoc = await userRef.get();
+
+    // 👉 如果 Firebase 有 → 直接当已注册
+    if (userDoc.exists) {
+        const data = userDoc.data();
+
+        users[chatId] = data;
+
+        bot.sendMessage(chatId,
+`👋 Welcome back ${data.member_id}
+
+👤 ${data.name}
+💰 Balance: RM${data.balance}`,
+        {
+            reply_markup: {
+                keyboard: [
+                    ["💰 Deposit", "💸 Withdraw"],
+                    ["🔁 Transfer", "🆔 Game ID"],
+                    ["🎁 Promo", "🏆 Agent"],
+                    ["🚀 Guide", "💬 Support"]
+                ],
+                resize_keyboard: true
+            }
+        });
+        return;
+    }
+
+    // 👉 Firebase 没有 → 创建新用户（本地）
     if (!users[chatId]) {
         const memberId = "MY" + Math.floor(100000 + Math.random() * 900000);
 
@@ -29,28 +68,6 @@ bot.onText(/\/start/, (msg) => {
 
     const user = users[chatId];
 
-    // 已注册
-    if (user.phone && user.name) {
-        bot.sendMessage(chatId,
-`👋 Welcome back ${user.member_id}
-
-👤 ${user.name}
-💰 Balance: RM${user.balance}`,
-        {
-            reply_markup: {
-                keyboard: [
-                    ["💰 Deposit", "💸 Withdraw"],
-                    ["🔁 Transfer", "🆔 Game ID"],
-                    ["🎁 Promo", "🏆 Agent"],
-                    ["🚀 Guide", "💬 Support"]
-                ],
-                resize_keyboard: true
-            }
-        });
-        return;
-    }
-
-    // 未注册
     bot.sendMessage(chatId,
 `👋 Welcome ${user.member_id}
 
@@ -73,13 +90,11 @@ bot.on("callback_query", (query) => {
     const data = query.data;
     const user = users[chatId];
 
-    // ❗已注册不能再选语言
     if (user.phone && user.name) {
         bot.sendMessage(chatId, "⚠️ Already registered");
         return;
     }
 
-    // 语言
     if (data === "en" || data === "bm" || data === "cn") {
 
         user.language = data;
@@ -111,42 +126,11 @@ bot.on("callback_query", (query) => {
         });
     }
 
-    // 注册
     if (data === "register") {
         user.step = "name";
 
-        if (user.language === "en") {
-            bot.sendMessage(chatId,
-`📝 Please enter your FULL NAME (Bank Account Name)
-
-⚠️ IMPORTANT:
-Name must match your bank account name
-Otherwise deposit/withdrawal may fail
-
-❌ Wrong name = No responsibility`);
-        }
-
-        if (user.language === "bm") {
-            bot.sendMessage(chatId,
-`📝 Sila masukkan NAMA PENUH (Nama Akaun Bank)
-
-⚠️ PENTING:
-Nama mesti sama dengan akaun bank
-Jika tidak, deposit/pengeluaran mungkin gagal
-
-❌ Nama salah = Tiada tanggungjawab`);
-        }
-
-        if (user.language === "cn") {
-            bot.sendMessage(chatId,
-`📝 请输入您的银行户口姓名
-
-⚠️ 重要：
-姓名必须与银行户口一致
-否则存款/提款可能失败
-
-❌ 名字错误 = 本平台不负责`);
-        }
+        bot.sendMessage(chatId,
+`📝 Please enter your FULL NAME (Bank Account Name)`);
     }
 });
 
@@ -161,60 +145,29 @@ bot.on("message", (msg) => {
 
     const user = users[chatId];
 
-    // ====== 输入名字 ======
+    // ===== 名字 =====
     if (user.step === "name") {
         user.temp_name = text;
         user.step = "confirm_name";
 
-        if (user.language === "en") {
-            bot.sendMessage(chatId,
+        bot.sendMessage(chatId,
 `👤 ${text}
 
 Confirm name?`,
-            {
-                reply_markup: {
-                    keyboard: [["✅ Yes", "❌ No"]],
-                    resize_keyboard: true
-                }
-            });
-        }
-
-        if (user.language === "bm") {
-            bot.sendMessage(chatId,
-`👤 ${text}
-
-Sahkan nama?`,
-            {
-                reply_markup: {
-                    keyboard: [["✅ Ya", "❌ Tidak"]],
-                    resize_keyboard: true
-                }
-            });
-        }
-
-        if (user.language === "cn") {
-            bot.sendMessage(chatId,
-`👤 ${text}
-
-确认名字吗？`,
-            {
-                reply_markup: {
-                    keyboard: [["✅ 是", "❌ 否"]],
-                    resize_keyboard: true
-                }
-            });
-        }
+        {
+            reply_markup: {
+                keyboard: [["✅ Yes", "❌ No"]],
+                resize_keyboard: true
+            }
+        });
 
         return;
     }
 
-    // ====== 确认名字 ======
+    // ===== 确认 =====
     if (user.step === "confirm_name") {
 
-        const yes = ["✅ Yes", "✅ Ya", "✅ 是"];
-        const no = ["❌ No", "❌ Tidak", "❌ 否"];
-
-        if (yes.includes(text)) {
+        if (text === "✅ Yes") {
             user.name = user.temp_name;
             user.step = "phone";
 
@@ -231,57 +184,39 @@ Sahkan nama?`,
             );
         }
 
-        if (no.includes(text)) {
+        if (text === "❌ No") {
             user.step = "name";
-            bot.sendMessage(chatId, "❗ Please re-enter your name:");
+            bot.sendMessage(chatId, "❗ Re-enter name:");
         }
 
         return;
     }
 
-    // ====== Deposit ======
+    // ===== Deposit =====
     if (text === "💰 Deposit") {
-
-        bot.sendMessage(chatId,
-"Minimum RM30\nSelect amount:",
-        {
-            reply_markup: {
-                keyboard: [
-                    ["30", "50", "100", "200"],
-                    ["300", "500", "1000", "2000"],
-                    ["Other", "❌ Cancel"]
-                ],
-                resize_keyboard: true
-            }
-        });
-        return;
-    }
-
-    const amounts = ["30","50","100","200","300","500","1000","2000"];
-
-    if (amounts.includes(text)) {
-        bot.sendMessage(chatId,
-`🏦 Bank:
-
-Maybank
-ABC COMPANY
-123456789
-
-Amount: RM${text}
-
-Send receipt after transfer`);
+        bot.sendMessage(chatId, "Minimum RM30");
         return;
     }
 });
 
 
-// ====== CONTACT ======
-bot.on("contact", (msg) => {
+// ====== CONTACT（🔥重点：写入 Firebase）=====
+bot.on("contact", async (msg) => {
     const chatId = msg.chat.id;
     const user = users[chatId];
 
     user.phone = msg.contact.phone_number;
     user.step = null;
+
+    // 🔥 存进 Firebase
+    await db.collection("users").doc(String(chatId)).set({
+        telegram_id: user.telegram_id,
+        member_id: user.member_id,
+        name: user.name,
+        phone: user.phone,
+        balance: user.balance,
+        created_at: new Date()
+    });
 
     bot.sendMessage(chatId,
 `✅ Registered Successfully
