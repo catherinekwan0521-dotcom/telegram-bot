@@ -1,11 +1,7 @@
-console.log("🚀 BOT STARTED");
-bot.on("message", (msg) => {
-    console.log("📩 MSG:", msg.text);
-});
 const TelegramBot = require('node-telegram-bot-api');
 const admin = require("firebase-admin");
 
-// 🔥 Firebase
+// ===== FIREBASE =====
 const serviceAccount = require("./firebase-key.json");
 
 admin.initializeApp({
@@ -15,9 +11,17 @@ admin.initializeApp({
 const db = admin.firestore();
 
 // ===== TELEGRAM =====
-const token ='8721828503:AAH-fdnsPJkjTeDKqd9oj4UHvXQOMjaJeRc';
+const token = '8721828503:AAH-fdnsPJkjTeDKqd9oj4UHvXQOMjaJeRc'; //
 const bot = new TelegramBot(token, { polling: true });
 
+// ===== DEBUG =====
+console.log("🚀 BOT STARTED");
+
+bot.on("message", (msg) => {
+    console.log("📩 MSG:", msg.text);
+});
+
+// ===== LOCAL MEMORY =====
 let users = {};
 
 
@@ -25,66 +29,69 @@ let users = {};
 bot.onText(/\/start/, async (msg) => {
     const chatId = msg.chat.id;
 
-    // 🔥 先查 Firebase
-    const userRef = db.collection("users").doc(String(chatId));
-    const userDoc = await userRef.get();
+    try {
+        const userRef = db.collection("users").doc(String(chatId));
+        const userDoc = await userRef.get();
 
-    // 👉 如果 Firebase 有 → 直接当已注册
-    if (userDoc.exists) {
-        const data = userDoc.data();
+        // 👉 已注册（Firebase）
+        if (userDoc.exists) {
+            const data = userDoc.data();
+            users[chatId] = data;
 
-        users[chatId] = data;
-
-        bot.sendMessage(chatId,
+            bot.sendMessage(chatId,
 `👋 Welcome back ${data.member_id}
 
 👤 ${data.name}
 💰 Balance: RM${data.balance}`,
-        {
-            reply_markup: {
-                keyboard: [
-                    ["💰 Deposit", "💸 Withdraw"],
-                    ["🔁 Transfer", "🆔 Game ID"],
-                    ["🎁 Promo", "🏆 Agent"],
-                    ["🚀 Guide", "💬 Support"]
-                ],
-                resize_keyboard: true
-            }
-        });
-        return;
-    }
+            {
+                reply_markup: {
+                    keyboard: [
+                        ["💰 Deposit", "💸 Withdraw"],
+                        ["🔁 Transfer", "🆔 Game ID"],
+                        ["🎁 Promo", "🏆 Agent"],
+                        ["🚀 Guide", "💬 Support"]
+                    ],
+                    resize_keyboard: true
+                }
+            });
+            return;
+        }
 
-    // 👉 Firebase 没有 → 创建新用户（本地）
-    if (!users[chatId]) {
-        const memberId = "MY" + Math.floor(100000 + Math.random() * 900000);
+        // 👉 新用户
+        if (!users[chatId]) {
+            const memberId = "MY" + Math.floor(100000 + Math.random() * 900000);
 
-        users[chatId] = {
-            telegram_id: chatId,
-            member_id: memberId,
-            phone: null,
-            name: null,
-            temp_name: null,
-            balance: 0,
-            language: null,
-            step: null
-        };
-    }
+            users[chatId] = {
+                telegram_id: chatId,
+                member_id: memberId,
+                phone: null,
+                name: null,
+                temp_name: null,
+                balance: 0,
+                language: null,
+                step: null
+            };
+        }
 
-    const user = users[chatId];
+        const user = users[chatId];
 
-    bot.sendMessage(chatId,
+        bot.sendMessage(chatId,
 `👋 Welcome ${user.member_id}
 
 Please select language:`,
-    {
-        reply_markup: {
-            inline_keyboard: [
-                [{ text: "🇬🇧 English", callback_data: "en" }],
-                [{ text: "🇲🇾 BM", callback_data: "bm" }],
-                [{ text: "🇨🇳 中文", callback_data: "cn" }]
-            ]
-        }
-    });
+        {
+            reply_markup: {
+                inline_keyboard: [
+                    [{ text: "🇬🇧 English", callback_data: "en" }],
+                    [{ text: "🇲🇾 BM", callback_data: "bm" }],
+                    [{ text: "🇨🇳 中文", callback_data: "cn" }]
+                ]
+            }
+        });
+
+    } catch (err) {
+        console.log("❌ START ERROR:", err);
+    }
 });
 
 
@@ -93,6 +100,8 @@ bot.on("callback_query", (query) => {
     const chatId = query.message.chat.id;
     const data = query.data;
     const user = users[chatId];
+
+    if (!user) return;
 
     if (user.phone && user.name) {
         bot.sendMessage(chatId, "⚠️ Already registered");
@@ -134,7 +143,9 @@ bot.on("callback_query", (query) => {
         user.step = "name";
 
         bot.sendMessage(chatId,
-`📝 Please enter your FULL NAME (Bank Account Name)`);
+`📝 Please enter your FULL NAME (Bank Account Name)
+
+⚠️ Name must match bank account`);
     }
 });
 
@@ -149,7 +160,7 @@ bot.on("message", (msg) => {
 
     const user = users[chatId];
 
-    // ===== 名字 =====
+    // ===== 输入名字 =====
     if (user.step === "name") {
         user.temp_name = text;
         user.step = "confirm_name";
@@ -168,7 +179,7 @@ Confirm name?`,
         return;
     }
 
-    // ===== 确认 =====
+    // ===== 确认名字 =====
     if (user.step === "confirm_name") {
 
         if (text === "✅ Yes") {
@@ -204,40 +215,44 @@ Confirm name?`,
 });
 
 
-// ====== CONTACT（🔥重点：写入 Firebase）=====
+// ====== CONTACT（写入 Firebase）=====
 bot.on("contact", async (msg) => {
     const chatId = msg.chat.id;
     const user = users[chatId];
 
-    user.phone = msg.contact.phone_number;
-    user.step = null;
+    try {
+        user.phone = msg.contact.phone_number;
+        user.step = null;
 
-    // 🔥 存进 Firebase
-    await db.collection("users").doc(String(chatId)).set({
-        telegram_id: user.telegram_id,
-        member_id: user.member_id,
-        name: user.name,
-        phone: user.phone,
-        balance: user.balance,
-        created_at: new Date()
-    });
+        await db.collection("users").doc(String(chatId)).set({
+            telegram_id: user.telegram_id,
+            member_id: user.member_id,
+            name: user.name,
+            phone: user.phone,
+            balance: user.balance,
+            created_at: new Date()
+        });
 
-    bot.sendMessage(chatId,
+        bot.sendMessage(chatId,
 `✅ Registered Successfully
 
 ID: ${user.member_id}
 Name: ${user.name}
 Phone: ${user.phone}
 Balance: RM0`,
-    {
-        reply_markup: {
-            keyboard: [
-                ["💰 Deposit", "💸 Withdraw"],
-                ["🔁 Transfer", "🆔 Game ID"],
-                ["🎁 Promo", "🏆 Agent"],
-                ["🚀 Guide", "💬 Support"]
-            ],
-            resize_keyboard: true
-        }
-    });
+        {
+            reply_markup: {
+                keyboard: [
+                    ["💰 Deposit", "💸 Withdraw"],
+                    ["🔁 Transfer", "🆔 Game ID"],
+                    ["🎁 Promo", "🏆 Agent"],
+                    ["🚀 Guide", "💬 Support"]
+                ],
+                resize_keyboard: true
+            }
+        });
+
+    } catch (err) {
+        console.log("❌ SAVE ERROR:", err);
+    }
 });
